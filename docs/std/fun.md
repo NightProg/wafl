@@ -1,5 +1,5 @@
 # Function
-`defun`
+## `defun`
 ```lisp
 defun add a b (
     + a b
