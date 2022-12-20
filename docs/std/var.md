@@ -1,4 +1,4 @@
-# Varible
+# Variable
 ## Immuable
 ```rs
 let a 1
