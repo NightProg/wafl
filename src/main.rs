@@ -1,3 +1,9 @@
+mod lexer;
+
+use lexer::Lexer;
+
 fn main() {
-    println!("Hello, world!");
+    let lexer = Lexer::new(String::from("src/test.lf"));
+    let debug_lexer = lexer.debug();
+    println!("{:?}", debug_lexer);
 }
