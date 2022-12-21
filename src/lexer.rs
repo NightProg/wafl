@@ -1,5 +1,8 @@
 use std::fs;
 
+const BUILTINS: &[&str] = &[];
+const MACROS: &[&str] = &["defun", "vec", "tup", "if", "else", "while", "let"];
+
 #[derive(Debug, PartialEq)]
 pub enum Macro {
     Defun,
@@ -60,7 +63,7 @@ pub struct Lexer {
     output: Vec<Token>,
     line: usize,
     start: usize,
-    current: usize // is column
+    current: usize,
 }
 
 impl Lexer {
@@ -102,11 +105,12 @@ impl Lexer {
         let cc = self.advance();
 
         match cc {
-            '>' => self.output.push(Token::new(LType::RBracket)),
-            '<' => self.output.push(Token::new(LType::LBracket)),
-            '(' => self.output.push(Token::new(LType::LParen)),
-            ')' => self.output.push(Token::new(LType::RParen)),
-            '"' => self.output.push(Token::new(LType::Quote)),
+            ' ' => {}
+            '>' => self.add_token(LType::RBracket),
+            '<' => self.add_token(LType::LBracket),
+            '(' => self.add_token(LType::LParen),
+            ')' => self.add_token(LType::RParen),
+            '"' => self.add_token(LType::Quote),
             '\n' => self.line += 1,
             x => if *self.output.last().unwrap() == Token(LType::Quote) {
                     self.string();
@@ -118,33 +122,57 @@ impl Lexer {
         }
     }
 
-    pub fn string(&mut self) {
-        self.start = self.current;
+    pub fn add_token(&mut self, ltype: LType) {
+        self.output.push(Token(ltype));
+    }
 
-        while !self.is_eof() && self.peek() != '"' {
-            if self.peek() == '\n' {
-                self.line += 1
+    pub fn string(&mut self) {
+        'outer: while !self.is_eof() {
+            match self.peek() {
+                '"' => break 'outer,
+                '\n' => self.line += 1,
+                _ => (),
             }
             self.advance();
         }
-
         if self.is_eof() {
             eprintln!("Unlimited string.");
         }
 
-        let str = self.input[self.start - 1..self.current].to_owned();
-        println!("{}", str);
-
-        self.output.push(Token::new(LType::Str(str)));
+        let str = self.input[self.start..self.current].to_owned();
+        println!("Str: '{}'", str);
+        self.current += 1; // Spell of quotation marks
+        self.add_token(LType::Str(str));
     }
 
     pub fn number(&self) {}
 
-    pub fn identifier(&self) {}
+    pub fn identifier(&mut self) {
+        let stop = vec!['(',')', '\n', ' ', '"'];
+        while !self.is_eof() && !stop.contains(&self.peek()) { self.advance(); }
+        let ident = self.input[self.start..self.current].to_string();
+        
+        match &ident as &str {
+            // Macro
+            "defun" => self.add_token(LType::Macro(Macro::Defun)),
+            "vec" => self.add_token(LType::Macro(Macro::Vec)),
+            "tup" => self.add_token(LType::Macro(Macro::Tup)),
+            "if" => self.add_token(LType::Macro(Macro::If)),
+            "else" => self.add_token(LType::Macro(Macro::Else)),
+            "while" => self.add_token(LType::Macro(Macro::While)),
+            "let" => self.add_token(LType::Macro(Macro::Let)),
+
+            //Builtin
+            // ...
+            
+            _ => self.add_token(LType::Ident(ident))
+        }
+    }
 
     pub fn lex(&mut self) {
         while !self.is_eof() {
             self.lex_one();
+            self.start = self.current;
         }
     }
 }
