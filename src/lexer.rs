@@ -1,19 +1,5 @@
 use std::fs;
 
-const BUILTINS: &[&str] = &[];
-const MACROS: &[&str] = &["defun", "vec", "tup", "if", "else", "while", "let"];
-
-#[derive(Debug, PartialEq)]
-pub enum Macro {
-    Defun,
-    Vec,
-    Tup,
-    While,
-    If,
-    Else,
-    Let
-}
-
 #[derive(Debug, PartialEq)]
 pub enum Builtin {}
 
@@ -24,10 +10,21 @@ pub enum LType {
     LBracket, // <
     RBracket, // >
     Quote, // "
-    Macro(Macro),
+    Times, // *
+    Plus, // +
+    Minus, // -
+    Div, // /
+    Modulo, // %
+    Defun,
+    Vec,
+    Tup,
+    While,
+    If,
+    Else,
+    Let,
     Ident(String),
     Str(String),
-    Integer(i32),
+    Integer(i64),
     Real(f64),
     Builtin(Builtin)
 }
@@ -39,12 +36,12 @@ impl LType {
             Self::LBracket => String::from("Opening Chevron"),
             Self::RBracket => String::from("Closing Chevron"),
             Self::Quote => String::from("Quote"),
-            Self::Macro(_) => String::from("Macro"),
+            Self::Times | Self::Plus | Self::Minus | Self::Div | Self::Modulo => String::from("Mathematical operator"),
             Self::Ident(_) => String::from("Identifier"),
             Self::Str(_) => String::from("String"),
             Self::Integer(_) => String::from("Integer"),
             Self::Real(_) => String::from("Real"),
-            _ => String::from("Keyword")
+            _ => String::from("Keyword") // Keyword & Builtin
         }
     }
 }
@@ -111,6 +108,11 @@ impl Lexer {
             '(' => self.add_token(LType::LParen),
             ')' => self.add_token(LType::RParen),
             '"' => self.add_token(LType::Quote),
+            '-' => self.add_token(LType::Minus),
+            '+' => self.add_token(LType::Plus),
+            '*' => self.add_token(LType::Times),
+            '/' => self.add_token(LType::Div),
+            '%' => self.add_token(LType::Modulo),
             '\n' => self.line += 1,
             x => if *self.output.last().unwrap() == Token(LType::Quote) {
                     self.string();
@@ -145,7 +147,25 @@ impl Lexer {
         self.add_token(LType::Str(str));
     }
 
-    pub fn number(&self) {}
+    pub fn number(&mut self) {
+        let stop = vec![')', '\n', ' '];
+        while !self.is_eof() && !stop.contains(&self.peek()) {
+            self.advance();
+        }
+        let num = self.input[self.start..self.current].to_string();
+        match num.parse::<i64>() {
+            Ok(v) => if self.input.chars().nth(self.start - 1).unwrap() == '-' {
+                    self.add_token(LType::Integer(-v))
+                } else {
+                    self.add_token(LType::Integer(v))
+                }
+            Err(_) => if self.input.chars().nth(self.start - 1).unwrap() == '-' {
+                    self.add_token(LType::Real(-num.parse::<f64>().unwrap()))
+                } else {
+                    self.add_token(LType::Real(num.parse::<f64>().unwrap()))
+                }
+        }
+    }
 
     pub fn identifier(&mut self) {
         let stop = vec!['(',')', '\n', ' ', '"'];
@@ -153,18 +173,18 @@ impl Lexer {
         let ident = self.input[self.start..self.current].to_string();
         
         match &ident as &str {
-            // Macro
-            "defun" => self.add_token(LType::Macro(Macro::Defun)),
-            "vec" => self.add_token(LType::Macro(Macro::Vec)),
-            "tup" => self.add_token(LType::Macro(Macro::Tup)),
-            "if" => self.add_token(LType::Macro(Macro::If)),
-            "else" => self.add_token(LType::Macro(Macro::Else)),
-            "while" => self.add_token(LType::Macro(Macro::While)),
-            "let" => self.add_token(LType::Macro(Macro::Let)),
+            // Keyword
+            "defun" => self.add_token(LType::Defun),
+            "vec" => self.add_token(LType::Vec),
+            "tup" => self.add_token(LType::Tup),
+            "if" => self.add_token(LType::If),
+            "else" => self.add_token(LType::Else),
+            "while" => self.add_token(LType::While),
+            "let" => self.add_token(LType::Let),
 
             //Builtin
             // ...
-            
+
             _ => self.add_token(LType::Ident(ident))
         }
     }
