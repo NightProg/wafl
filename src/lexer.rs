@@ -1,4 +1,4 @@
-use std::{fs, process::id};
+use std::fs;
 use crate::builtin;
 
 #[derive(Debug, PartialEq)]
@@ -145,14 +145,31 @@ impl Lexer {
 
     pub fn number(&mut self) {
         let stop = vec![')', '\n', ' '];
+
         while !self.is_eof() && !stop.contains(&self.peek()) { self.advance(); }
+
         let num = self.input[self.start..self.current].to_string();
-        let value = match num.parse::<i64>() { Ok(v) => v as f64, Err(_) => num.parse::<f64>().unwrap() };
+        
+        if num.chars().last().unwrap() == '.' {
+            panic!("Expected a decimal, but nothing found.");
+        }
+
+        let value = match num.parse::<i64>() {
+            Ok(v) => v as f64,
+            Err(_) => num.parse::<f64>().unwrap()
+        };
+
+        // Is negative
         let value = if self.input.chars().nth(self.start - 1).unwrap() == '-' {
             self.output.pop();
             -value
         } else { value };
-        self.add_token(if value.fract() == 0.0 { LType::Integer(value as i64) } else { LType::Real(value) });
+
+        self.add_token(if value.fract() == 0.0 {
+            LType::Integer(value as i64)
+        } else {
+            LType::Real(value)
+        });
     }
 
     pub fn identifier(&mut self) {
