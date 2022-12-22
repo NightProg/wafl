@@ -1,4 +1,5 @@
 mod lexer;
+mod builtin;
 
 use lexer::Lexer;
 

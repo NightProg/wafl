@@ -1,7 +1,5 @@
-use std::fs;
-
-#[derive(Debug, PartialEq)]
-pub enum Builtin {}
+use std::{fs, process::id};
+use crate::builtin;
 
 #[derive(Debug, PartialEq)]
 pub enum LType {
@@ -9,7 +7,6 @@ pub enum LType {
     RParen, // )
     LBracket, // <
     RBracket, // >
-    Quote, // "
     Times, // *
     Plus, // +
     Minus, // -
@@ -26,7 +23,7 @@ pub enum LType {
     Str(String),
     Integer(i64),
     Real(f64),
-    Builtin(Builtin)
+    Builtin(builtin::Builtin)
 }
 impl LType {
     pub fn get_type(&self) -> String {
@@ -35,7 +32,6 @@ impl LType {
             Self::RParen => String::from("Closing Parenthese"),
             Self::LBracket => String::from("Opening Chevron"),
             Self::RBracket => String::from("Closing Chevron"),
-            Self::Quote => String::from("Quote"),
             Self::Times | Self::Plus | Self::Minus | Self::Div | Self::Modulo => String::from("Mathematical operator"),
             Self::Ident(_) => String::from("Identifier"),
             Self::Str(_) => String::from("String"),
@@ -107,16 +103,17 @@ impl Lexer {
             '<' => self.add_token(LType::LBracket),
             '(' => self.add_token(LType::LParen),
             ')' => self.add_token(LType::RParen),
-            '"' => self.add_token(LType::Quote),
+            '"' => {
+                    self.start += 1;
+                    self.string();
+                }
             '-' => self.add_token(LType::Minus),
             '+' => self.add_token(LType::Plus),
             '*' => self.add_token(LType::Times),
             '/' => self.add_token(LType::Div),
             '%' => self.add_token(LType::Modulo),
             '\n' => self.line += 1,
-            x => if *self.output.last().unwrap() == Token(LType::Quote) {
-                    self.string();
-                } else if x.is_numeric() {
+            x => if x.is_numeric() {
                     self.number();
                 } else {
                     self.identifier();
@@ -137,34 +134,25 @@ impl Lexer {
             }
             self.advance();
         }
-        if self.is_eof() {
-            eprintln!("Unlimited string.");
+        if self.is_eof()  {
+            panic!("Unlimited string.");
         }
 
-        let str = self.input[self.start..self.current].to_owned();
-        println!("Str: '{}'", str);
+        let str = self.input[self.start..self.current].to_string();
         self.current += 1; // Spell of quotation marks
         self.add_token(LType::Str(str));
     }
 
     pub fn number(&mut self) {
         let stop = vec![')', '\n', ' '];
-        while !self.is_eof() && !stop.contains(&self.peek()) {
-            self.advance();
-        }
+        while !self.is_eof() && !stop.contains(&self.peek()) { self.advance(); }
         let num = self.input[self.start..self.current].to_string();
-        match num.parse::<i64>() {
-            Ok(v) => if self.input.chars().nth(self.start - 1).unwrap() == '-' {
-                    self.add_token(LType::Integer(-v))
-                } else {
-                    self.add_token(LType::Integer(v))
-                }
-            Err(_) => if self.input.chars().nth(self.start - 1).unwrap() == '-' {
-                    self.add_token(LType::Real(-num.parse::<f64>().unwrap()))
-                } else {
-                    self.add_token(LType::Real(num.parse::<f64>().unwrap()))
-                }
-        }
+        let value = match num.parse::<i64>() { Ok(v) => v as f64, Err(_) => num.parse::<f64>().unwrap() };
+        let value = if self.input.chars().nth(self.start - 1).unwrap() == '-' {
+            self.output.pop();
+            -value
+        } else { value };
+        self.add_token(if value.fract() == 0.0 { LType::Integer(value as i64) } else { LType::Real(value) });
     }
 
     pub fn identifier(&mut self) {
@@ -182,8 +170,14 @@ impl Lexer {
             "while" => self.add_token(LType::While),
             "let" => self.add_token(LType::Let),
 
-            //Builtin
-            // ...
+            // Builtin
+            "put" => self.add_token(LType::Builtin(builtin::Builtin::Put)),
+            "get" => self.add_token(LType::Builtin(builtin::Builtin::Get)),
+            "type" => self.add_token(LType::Builtin(builtin::Builtin::Type)),
+            "len" => self.add_token(LType::Builtin(builtin::Builtin::Len)),
+            "panic" => self.add_token(LType::Builtin(builtin::Builtin::Panic)),
+            "push" => self.add_token(LType::Builtin(builtin::Builtin::Push)),
+            "pop" => self.add_token(LType::Builtin(builtin::Builtin::Pop)),
 
             _ => self.add_token(LType::Ident(ident))
         }
