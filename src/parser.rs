@@ -3,6 +3,7 @@ use crate::lexer::{
     LType,
 };
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Node {
     Add(f64, f64),
     Sub(f64, f64),
@@ -39,6 +40,7 @@ impl Node {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Parser {
     output: Vec<Node>,
     input: Vec<LType>,
@@ -62,6 +64,10 @@ impl Parser {
         self.output.push(node);
     }
 
+    pub fn is_eot(&self) -> bool {
+        self.current + 1 >= self.input.len()
+    }
+
     pub fn advance(&mut self) -> &LType {
         self.current += 1;
         self.input.get(self.current - 1).unwrap()
@@ -75,9 +81,23 @@ impl Parser {
     pub fn parse_one(&mut self) {
         let cc = self.advance();
 
-        match cc.get_type().as_str() {
-            "Opening Parenthese" => println!("hello"),
+        match cc {
+            LType::Let => {
+                    match self.peek(0) { // Ident
+                        LType::Ident(_) => {
+                                
+                            }
+                        t = panic!("Unexpected Token: Found {}.", t.get_type())
+                    }
+                }
             _ => {}
         }
+    }
+
+    pub fn parse(&mut self) -> Vec<Node> {
+        while !self.is_eot() {
+            self.parse_one();
+        }
+        self.output.clone()
     }
 }

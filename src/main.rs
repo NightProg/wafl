@@ -2,10 +2,7 @@ mod lexer;
 mod parser;
 mod builtin;
 
-use lexer::{
-    Lexer,
-    LType
-};
+use lexer::Lexer;
 use parser::Parser;
 
 fn main() {
@@ -16,6 +13,6 @@ fn main() {
     
     // Parsing
     let mut parser = Parser::new(tokens);
-    parser.advance();
-    parser.peek(1);
+    let mut node = parser.parse();
+    dbg!(node);
 }

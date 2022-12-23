@@ -36,7 +36,6 @@ impl LType {
             Self::Ident(_) => String::from("Identifier"),
             Self::Str(_) => String::from("String"),
             Self::Real(_) => String::from("Real"),
-            Self::Newline => String::from("Newline"),
             _ => String::from("Keyword") // Keyword & Builtin
         }
     }
