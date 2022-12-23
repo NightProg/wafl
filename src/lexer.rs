@@ -42,18 +42,9 @@ impl LType {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Token(LType);
-
-impl Token {
-    pub fn new(ltype: LType) -> Self {
-        Self ( ltype )
-    }
-}
-
 pub struct Lexer {
     pub input: String,
-    output: Vec<Token>,
+    output: Vec<LType>,
     line: usize,
     start: usize,
     current: usize,
@@ -122,7 +113,7 @@ impl Lexer {
     }
 
     pub fn add_token(&mut self, ltype: LType) {
-        self.output.push(Token(ltype));
+        self.output.push(ltype);
     }
 
     pub fn string(&mut self) {
