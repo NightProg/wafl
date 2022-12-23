@@ -1,7 +1,7 @@
 use std::fs;
 use crate::builtin;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LType {
     LParen, // (
     RParen, // )
@@ -21,9 +21,9 @@ pub enum LType {
     Let,
     Ident(String),
     Str(String),
-    Integer(i64),
     Real(f64),
-    Builtin(builtin::Builtin)
+    Builtin(builtin::Builtin),
+    Newline
 }
 impl LType {
     pub fn get_type(&self) -> String {
@@ -35,13 +35,14 @@ impl LType {
             Self::Times | Self::Plus | Self::Minus | Self::Div | Self::Modulo => String::from("Mathematical operator"),
             Self::Ident(_) => String::from("Identifier"),
             Self::Str(_) => String::from("String"),
-            Self::Integer(_) => String::from("Integer"),
             Self::Real(_) => String::from("Real"),
+            Self::Newline => String::from("Newline"),
             _ => String::from("Keyword") // Keyword & Builtin
         }
     }
 }
 
+#[derive(Debug)]
 pub struct Lexer {
     pub input: String,
     output: Vec<LType>,
@@ -61,15 +62,8 @@ impl Lexer {
         }
     }
 
-    pub fn debug(&self) -> String {
-        format!(
-            "output: {:?}, line: {}, start: {}, current_index: {}, current_value: {:?}",
-            self.output,
-            self.line,
-            self.start,
-            self.current,
-            self.input.chars().nth(self.current)
-        )
+    pub fn add_token(&mut self, ltype: LType) {
+        self.output.push(ltype);
     }
 
     pub fn is_eof(&self) -> bool {
@@ -89,7 +83,7 @@ impl Lexer {
         let cc = self.advance();
 
         match cc {
-            ' ' => {}
+            ' ' | '\r' => {}
             '>' => self.add_token(LType::RBracket),
             '<' => self.add_token(LType::LBracket),
             '(' => self.add_token(LType::LParen),
@@ -103,17 +97,13 @@ impl Lexer {
             '*' => self.add_token(LType::Times),
             '/' => self.add_token(LType::Div),
             '%' => self.add_token(LType::Modulo),
-            '\n' => self.line += 1,
+            '\n' => { self.line += 1; self.add_token(LType::Newline) }
             x => if x.is_numeric() {
                     self.number();
                 } else {
                     self.identifier();
                 }
         }
-    }
-
-    pub fn add_token(&mut self, ltype: LType) {
-        self.output.push(ltype);
     }
 
     pub fn string(&mut self) {
@@ -142,13 +132,11 @@ impl Lexer {
         let num = self.input[self.start..self.current].to_string();
         
         if num.chars().last().unwrap() == '.' {
-            panic!("Expected a decimal, but nothing found.");
+            panic!("Expected a decimal, but nothing found. Line {}.", self.line);
         }
 
-        let value = match num.parse::<i64>() {
-            Ok(v) => v as f64,
-            Err(_) => num.parse::<f64>().unwrap()
-        };
+        println!("{}", num);
+        let value = num.parse::<f64>().unwrap();
 
         // Is negative
         let value = if self.input.chars().nth(self.start - 1).unwrap() == '-' {
@@ -156,11 +144,7 @@ impl Lexer {
             -value
         } else { value };
 
-        self.add_token(if value.fract() == 0.0 {
-            LType::Integer(value as i64)
-        } else {
-            LType::Real(value)
-        });
+        self.add_token(LType::Real(value));
     }
 
     pub fn identifier(&mut self) {
@@ -191,10 +175,11 @@ impl Lexer {
         }
     }
 
-    pub fn lex(&mut self) {
+    pub fn lex(&mut self) -> Vec<LType> {
         while !self.is_eof() {
             self.lex_one();
             self.start = self.current;
         }
+        self.output.clone()
     }
 }
