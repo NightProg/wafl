@@ -13,18 +13,18 @@ pub enum LType {
     Div, // /
     Modulo, // %
     Defun,
-    Vec,
-    Tup,
     While,
     If,
     Else,
     Let,
     Ident(String),
     Str(String),
-    Real(f64),
+    Float(f64),
+    Integer(i64),
     Builtin(builtin::Builtin),
     Newline
 }
+
 impl LType {
     pub fn get_type(&self) -> String {
         match self {
@@ -35,7 +35,8 @@ impl LType {
             Self::Times | Self::Plus | Self::Minus | Self::Div | Self::Modulo => String::from("Mathematical operator"),
             Self::Ident(_) => String::from("Identifier"),
             Self::Str(_) => String::from("String"),
-            Self::Real(_) => String::from("Real"),
+            Self::Float(_) => String::from("Float"),
+            Self::Integer(_) => String::from("Integer"),
             _ => String::from("Keyword") // Keyword & Builtin
         }
     }
@@ -43,7 +44,7 @@ impl LType {
 
 #[derive(Debug)]
 pub struct Lexer {
-    pub input: String,
+    input: String,
     output: Vec<LType>,
     line: usize,
     start: usize,
@@ -123,19 +124,21 @@ impl Lexer {
         self.add_token(LType::Str(str));
     }
 
+
     pub fn number(&mut self) {
-        let stop = vec![')', '\n', ' '];
-
+        let stop = vec![')', '\n', '\r', ' '];
         while !self.is_eof() && !stop.contains(&self.peek()) { self.advance(); }
-
         let num = self.input[self.start..self.current].to_string();
-        
+
         if num.chars().last().unwrap() == '.' {
             panic!("Expected a decimal, but nothing found. Line {}.", self.line);
         }
-
-        println!("{}", num);
-        let value = num.parse::<f64>().unwrap();
+        
+        dbg!(&num);
+        let value = match num.parse::<i64>() {
+            Ok(v) => v as f64,
+            Err(_) => num.parse::<f64>().unwrap()
+        };
 
         // Is negative
         let value = if self.input.chars().nth(self.start - 1).unwrap() == '-' {
@@ -143,7 +146,11 @@ impl Lexer {
             -value
         } else { value };
 
-        self.add_token(LType::Real(value));
+        self.add_token(if value.fract() == 0.0 {
+            LType::Integer(value as i64)
+        } else {
+            LType::Float(value)
+        });
     }
 
     pub fn identifier(&mut self) {
@@ -154,8 +161,6 @@ impl Lexer {
         match &ident as &str {
             // Keyword
             "defun" => self.add_token(LType::Defun),
-            "vec" => self.add_token(LType::Vec),
-            "tup" => self.add_token(LType::Tup),
             "if" => self.add_token(LType::If),
             "else" => self.add_token(LType::Else),
             "while" => self.add_token(LType::While),
