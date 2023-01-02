@@ -1,5 +1,6 @@
 use std::fs;
 use crate::builtin;
+use std::string::ToString;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LType {
@@ -25,8 +26,8 @@ pub enum LType {
     Newline
 }
 
-impl LType {
-    pub fn get_type(&self) -> String {
+impl ToString for LType {
+    fn to_string(&self) -> String {
         match self {
             Self::LParen => String::from("Opening Parenthese"),
             Self::RParen => String::from("Closing Parenthese"),
